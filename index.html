@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Time-Travel SQLite Debugger</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        chrono: {
+                            bg: '#080a0f',
+                            panel: '#10141e',
+                            card: '#161c2b',
+                            border: '#232b3e',
+                            borderHover: '#374360',
+                            amber: '#f59e0b',
+                            emerald: '#10b981',
+                            rose: '#f43f5e',
+                            cyan: '#06b6d4',
+                            violet: '#8b5cf6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Space Grotesk', 'Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Space Grotesk, Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: #080a0f;
+            color: #e2e8f0;
+        }
+        .mono-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Animated Laser Scanning Track */
+        @keyframes laserScan {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes reelSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Animated Kayan Rainbow Text */
+        @keyframes rainbowText {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .rainbow-text {
+            background: linear-gradient(90deg, #f59e0b, #ec4899, #8b5cf6, #3b82f6, #10b981, #f59e0b);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: rainbowText 4s ease infinite;
+        }
+
+        .spin-reel {
+            animation: reelSpin 4s linear infinite;
+        }
+        .spin-reel-fast {
+            animation: reelSpin 0.8s linear infinite;
+        }
+
+        /* Animated Chrono Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 16px;
+            cursor: pointer;
+            background: linear-gradient(90deg, #10141e 0%, #1e293b 25%, #f59e0b 50%, #1e293b 75%, #10141e 100%);
+            background-size: 200% 200%;
+            animation: laserScan 6s ease infinite;
+            border-radius: 9999px;
+            border: 1px solid #334155;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.9);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 34px;
+            width: 34px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fde047 0%, #f59e0b 60%, #b45309 100%);
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 20px #f59e0b, 0 0 40px rgba(245, 158, 11, 0.6);
+            cursor: grab;
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -9px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            transform: scale(1.3);
+            box-shadow: 0 0 30px #f59e0b, 0 0 60px #f59e0b;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 25px #f59e0b, 0 0 45px rgba(245, 158, 11, 0.8);
+        }
+
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 16px;
+            cursor: pointer;
+            background: linear-gradient(90deg, #10141e 0%, #f59e0b 50%, #10141e 100%);
+            background-size: 200% 200%;
+            animation: laserScan 6s ease infinite;
+            border-radius: 9999px;
+            border: 1px solid #334155;
+        }
+        input[type=range]::-moz-range-thumb {
+            height: 34px;
+            width: 34px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #fde047 0%, #f59e0b 60%, #b45309 100%);
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 20px #f59e0b;
+            cursor: grab;
+        }
+
+        .chrono-box {
+            background: #10141e;
+            border: 1px solid #232b3e;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+        }
+        .chrono-box:hover {
+            border-color: #374360;
+        }
+        .digital-glow-amber {
+            text-shadow: 0 0 12px rgba(245, 158, 11, 0.7);
+        }
+        .digital-glow-emerald {
+            text-shadow: 0 0 12px rgba(16, 185, 129, 0.7);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-amber-500 selection:text-black">
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-200">
+        <div class="chrono-box max-w-md w-full p-6 rounded-2xl border border-amber-500/40 transform scale-95 transition-transform duration-200" id="modalCard">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-4 text-2xl mx-auto border border-amber-500/30">
+                ⏳
+            </div>
+            <h3 class="text-xl font-bold text-center text-white mb-2" data-i18n="ui.modal_title">Zaman Makinesi Onayı</h3>
+            <p class="text-gray-300 text-sm text-center mb-6 leading-relaxed">
+                <span data-i18n="ui.modal_desc">Veritabanı seçilen duruma geri döndürülecektir:</span> <br>
+                <span id="modalTargetTime" class="font-bold text-amber-400 mono-font block mt-2 text-base digital-glow-amber"></span>
+                <span class="text-xs text-rose-400/90 block mt-2 font-medium" data-i18n="ui.modal_warning">⚠️ Mevcut database.sqlite dosyasının üzerine yazılacaktır!</span>
+            </p>
+            <div class="flex gap-3">
+                <button onclick="closeModal()" class="flex-1 py-2.5 px-4 rounded-xl border border-gray-800 bg-gray-900 hover:bg-gray-800 text-gray-300 font-medium transition text-sm" data-i18n="ui.btn_cancel">
+                    İptal
+                </button>
+                <button id="modalConfirmBtn" class="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 transition text-sm flex items-center justify-center gap-2 whitespace-nowrap" data-i18n="ui.btn_confirm_restore">
+                    ⚡ Evet, Geri Yükle
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Diff Modal -->
+    <div id="diffModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md hidden opacity-0 transition-opacity duration-200">
+        <div class="chrono-box max-w-xl w-full p-6 rounded-2xl border border-amber-500/40 transform scale-95 transition-transform duration-200" id="diffModalCard">
+            <div class="flex justify-between items-center mb-4 border-b border-[#1c2333] pb-3">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span>🔍 Veritabanı Değişiklik Özeti (Diff)</span>
+                </h3>
+                <button onclick="closeDiffModal()" class="text-gray-400 hover:text-white text-sm">✕</button>
+            </div>
+            <div id="diffContent" class="space-y-3 max-h-80 overflow-y-auto pr-1">
+                <p class="text-xs text-gray-400">Yükleniyor...</p>
+            </div>
+            <div class="mt-6 flex justify-end">
+                <button onclick="closeDiffModal()" class="py-2 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold text-xs transition">
+                    Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Developer Navbar Header -->
+    <header class="bg-[#0b0e16] border-b border-[#1c2333] sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg font-bold">
+                    ⏱️
+                </div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                        <span data-i18n="ui.app_title">Time-Travel SQLite</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-semibold uppercase tracking-widest mono-font" data-i18n="ui.badge_debugger">DEBUGGER</span>
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Header Controls & Language Switcher -->
+            <div class="flex items-center gap-3">
+                
+                <!-- Custom Language Toggle Pills -->
+                <div class="flex items-center bg-[#10141e] border border-[#232b3e] rounded-lg p-1 text-xs font-semibold">
+                    <button onclick="changeLanguage('tr')" id="langBtn_tr" class="px-2.5 py-1 rounded-md transition text-gray-400 hover:text-white">
+                        🇹🇷 TR
+                    </button>
+                    <button onclick="changeLanguage('en')" id="langBtn_en" class="px-2.5 py-1 rounded-md transition text-gray-400 hover:text-white">
+                        🇬🇧 EN
+                    </button>
+                </div>
+
+                <div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-[#10141e] border border-[#232b3e] text-xs text-gray-300">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span><span data-i18n="ui.watcher_status_label">Watcher</span>: <strong class="text-emerald-400 font-semibold" id="watcherStatus" data-i18n="ui.watcher_status_active">Aktif</strong></span>
+                </div>
+
+                <div class="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-[#10141e] border border-[#232b3e] text-xs text-gray-300">
+                    <span><span data-i18n="ui.backup_count_label">Yedek Sayısı</span>: <strong class="text-amber-400 font-semibold mono-font" id="backupCountBadge">0 / 50</strong></span>
+                </div>
+
+                <button onclick="toggleAutoPoll()" id="pollToggleBtn" class="flex items-center gap-2 px-3 py-1 rounded-lg bg-[#10141e] hover:bg-[#182030] text-xs text-gray-300 font-medium transition border border-[#232b3e] whitespace-nowrap">
+                    <span id="pollIndicator" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span id="pollText">Canlı Takip (2s)</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
+
+        <!-- Top Overview Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Target Database Info Card -->
+            <div class="chrono-box p-6 rounded-2xl flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mono-font" data-i18n="ui.target_db_title">Hedef Veritabanı</span>
+                        <span id="dbWritableBadge" class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold" data-i18n="ui.writable">Yazılabilir</span>
+                    </div>
+                    <h2 class="text-lg font-bold text-white mono-font mb-1 truncate" id="dbFileName">database.sqlite</h2>
+                    <p class="text-xs text-gray-400 mb-4" id="dbLastMtime">Son Değişiklik: Yükleniyor...</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-4 border-t border-[#1c2333]">
+                    <div class="bg-[#0b0e16] p-3 rounded-xl border border-[#1c2333]">
+                        <span class="text-[10px] text-gray-400 block uppercase tracking-wider" data-i18n="ui.file_size">Dosya Boyutu</span>
+                        <span class="text-sm font-bold text-white mono-font" id="dbFileSize">0 KB</span>
+                    </div>
+                    <div class="bg-[#0b0e16] p-3 rounded-xl border border-[#1c2333]">
+                        <span class="text-[10px] text-gray-400 block uppercase tracking-wider" data-i18n="ui.snapshot_total">Kayıtlı Snapshot</span>
+                        <span class="text-sm font-bold text-amber-400 mono-font" id="dbSnapshotTotal">0 adet</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Action Toolbar -->
+            <div class="lg:col-span-2 chrono-box p-6 rounded-2xl flex flex-col justify-between">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <span data-i18n="ui.quick_tools_title">🧪 Hızlı Test ve Geri Yükleme Araçları</span>
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-1" data-i18n="ui.quick_tools_desc">Veritabanına veri yazıp zaman makinesinin anlık snapshot almasını test edin.</p>
+                    </div>
+                    <div class="flex gap-2 flex-wrap sm:flex-nowrap">
+                        <button onclick="triggerTestWrite()" class="py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs shadow-lg shadow-amber-500/10 transition flex items-center gap-2 whitespace-nowrap">
+                            <span data-i18n="ui.btn_test_write">✍️ Test Verisi Ekle (DB Write)</span>
+                        </button>
+                        <button onclick="resetToLiveState()" class="py-2.5 px-4 rounded-xl bg-[#1c2333] hover:bg-[#283248] text-gray-200 font-semibold text-xs transition border border-[#2e3a54] flex items-center gap-1.5 whitespace-nowrap">
+                            <span data-i18n="ui.btn_live_state">🔴 Canlı State</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Keyboard Shortcut / Tip Banner -->
+                <div class="bg-[#0b0e16] border border-[#1c2333] rounded-xl p-3.5 flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-3">
+                        <span class="text-base">⌨️</span>
+                        <span class="text-gray-300" data-i18n="ui.watcher_tip">
+                            İpucu: Terminalinizde php watcher.php çalışır durumda olmalıdır. Klavye Ok Yön Tuşları (⬅️ / ➡️) ile slider'ı kontrol edebilirsiniz.
+                        </span>
+                    </div>
+                    <button onclick="loadBackups(true)" class="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 whitespace-nowrap">
+                        <span data-i18n="ui.btn_refresh">🔄 Yenile</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- MAIN CHRONO ANIMATED TIMELINE SCRUBBER -->
+        <section class="chrono-box p-8 rounded-3xl relative overflow-hidden border border-amber-500/30 shadow-2xl">
+            
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-xl font-bold">
+                        <span id="reelSpinner" class="inline-block spin-reel">⚙️</span>
+                    </div>
+                    <div>
+                        <span class="text-xs font-bold tracking-widest text-amber-400 uppercase mono-font" data-i18n="ui.timeline_title">ZAMAN EKSENİ (TIMELINE)</span>
+                        <h2 class="text-2xl font-extrabold text-white mt-0.5" data-i18n="ui.slider_heading">Geri Sarma Çubuğu</h2>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <div class="px-5 py-2.5 rounded-xl bg-[#0b0e16] border border-amber-500/40 text-amber-400 text-sm font-bold mono-font flex items-center gap-2.5 digital-glow-amber shadow-lg shadow-amber-500/10" id="timeReadoutBadge">
+                        <span class="w-3 h-3 rounded-full bg-amber-400 animate-ping"></span>
+                        <span id="relativeTimeText" data-i18n="ui.live_state_label">Canlı State (En Güncel)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slider Control Container with Dynamic Non-Clipping Follower Tooltip -->
+            <div class="space-y-6 relative">
+                <div class="relative py-6 px-2">
+                    
+                    <!-- Floating Follower Tooltip above slider thumb with smart bounds clamping -->
+                    <div id="sliderTooltip" class="absolute -top-4 bg-amber-500 text-black text-[11px] font-extrabold px-3 py-1 rounded-full shadow-lg shadow-amber-500/30 transition-all duration-75 ease-out pointer-events-none z-20 flex items-center gap-1.5 whitespace-nowrap">
+                        <span>⏱️</span> <span id="tooltipText">Canlı State</span>
+                    </div>
+
+                    <input type="range" id="timeSlider" min="0" max="0" value="0" step="1" oninput="onSliderInput(this.value)" onchange="onSliderChange(this.value)">
+                    
+                    <!-- Interactive Visual Snapshot Ticks Bar -->
+                    <div id="timelineTicks" class="flex justify-between items-center mt-3 px-2 h-3">
+                        <!-- Dynamic snapshot tick dots rendered via JS -->
+                    </div>
+
+                    <div class="flex justify-between text-[11px] font-medium mt-3 px-1 mono-font">
+                        <span id="sliderMinLabel" class="text-gray-400" data-i18n="ui.oldest_snapshot_label">En Eski Snapshot</span>
+                        <span class="rainbow-text font-extrabold text-xs flex items-center gap-1">
+                            <span>⏪</span> <span data-i18n="ui.drag_hint">Zaman Çubuğunu Sürükleyin</span> <span>⏩</span>
+                        </span>
+                        <span id="sliderMaxLabel" class="text-emerald-400 font-semibold digital-glow-emerald whitespace-nowrap" data-i18n="ui.live_now_label">🔴 Canlı (Şimdi)</span>
+                    </div>
+                </div>
+
+                <!-- Selected State Details & Master Action Bar -->
+                <div class="bg-[#0b0e16] p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-6 border border-[#1c2333] transition-all duration-300" id="selectedStateCard">
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold mono-font" id="stateBadge" data-i18n="ui.snapshot_badge_live">CANLI / LATEST</span>
+                            <span id="pinnedBadge" class="hidden text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold">📌 İĞNELİ</span>
+                            <span class="text-xs text-gray-400 mono-font" id="stateFilename">Yükleniyor...</span>
+                        </div>
+                        <div class="text-xl font-bold text-white mono-font flex items-center gap-3" id="stateDateTime">
+                            <span>2026-08-08 20:24:00</span>
+                        </div>
+                        <p class="text-xs text-gray-400 flex items-center gap-4">
+                            <span><span data-i18n="ui.size_label">Boyut</span>: <strong class="text-gray-200 mono-font" id="stateSize">0 KB</strong></span>
+                            <span><span data-i18n="ui.index_label">Konum</span>: <strong class="text-gray-200 mono-font" id="stateIndex">0 / 0</strong></span>
+                        </p>
+                    </div>
+
+                    <!-- Master Action Toolbar -->
+                    <div class="flex flex-wrap items-center gap-2.5">
+                        <button onclick="openDiffModal()" class="py-2.5 px-3.5 rounded-xl bg-[#161c2b] hover:bg-[#20283d] text-cyan-400 border border-cyan-500/30 font-semibold text-xs transition flex items-center gap-1.5 whitespace-nowrap">
+                            <span data-i18n="ui.btn_diff">🔍 Fark İncele (Diff)</span>
+                        </button>
+
+                        <button onclick="downloadCurrentSnapshot()" class="py-2.5 px-3.5 rounded-xl bg-[#161c2b] hover:bg-[#20283d] text-emerald-400 border border-emerald-500/30 font-semibold text-xs transition flex items-center gap-1.5 whitespace-nowrap">
+                            <span data-i18n="ui.btn_download">📥 İndir (.sqlite)</span>
+                        </button>
+
+                        <button id="pinBtn" onclick="togglePinCurrent()" class="py-2.5 px-3.5 rounded-xl bg-[#161c2b] hover:bg-[#20283d] text-amber-400 border border-amber-500/30 font-semibold text-xs transition flex items-center gap-1.5 whitespace-nowrap">
+                            📌 İğnele
+                        </button>
+
+                        <button id="restoreBtn" onclick="openRestoreModal()" class="py-2.5 px-5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs shadow-xl shadow-amber-500/20 transition transform hover:-translate-y-0.5 flex items-center gap-2 whitespace-nowrap">
+                            <span data-i18n="ui.btn_restore_state">⚡ Bu State'e Geri Dön</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SNAPSHOT HISTORY LIST SECTION -->
+        <section class="chrono-box p-6 rounded-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <span data-i18n="ui.history_title">📜 Snapshot Geçmişi</span>
+                        <span class="text-xs font-normal text-gray-400" data-i18n="ui.history_subtitle">(Son 50 Yedek)</span>
+                    </h3>
+                </div>
+            </div>
+
+            <!-- Backups Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="border-b border-[#1c2333] text-gray-400 font-semibold uppercase tracking-wider mono-font">
+                            <th class="py-3 px-4" data-i18n="ui.table_header_timestamp">Zaman Damgası</th>
+                            <th class="py-3 px-4" data-i18n="ui.table_header_datetime">Tarih & Saat</th>
+                            <th class="py-3 px-4" data-i18n="ui.table_header_relative">Geçen Süre</th>
+                            <th class="py-3 px-4" data-i18n="ui.table_header_size">Boyut</th>
+                            <th class="py-3 px-4 text-right" data-i18n="ui.table_header_action">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="backupsTbody" class="divide-y divide-[#1c2333] font-medium">
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-gray-500">Yedekler yükleniyor...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-[#1c2333] py-6 text-center text-xs text-gray-500">
+        <p data-i18n="ui.footer_copy">Time-Travel SQLite Debugger &copy; 2026 - Açık Kaynaklı Veritabanı Zaman Makinesi</p>
+    </footer>
+
+    <!-- JavaScript Application Logic & i18n Engine -->
+    <script>
+        // State variables
+        let currentLang = localStorage.getItem('time_travel_lang') || 'tr';
+        let translations = {};
+        let availableLanguages = [];
+        let backupsList = [];
+        let currentDbInfo = null;
+        let selectedIndex = 0;
+        let isAutoPolling = true;
+        let pollTimer = null;
+        let isLiveState = true;
+
+        // DOM Element references
+        const timeSlider = document.getElementById('timeSlider');
+        const sliderTooltip = document.getElementById('sliderTooltip');
+        const tooltipText = document.getElementById('tooltipText');
+        const reelSpinner = document.getElementById('reelSpinner');
+        const relativeTimeText = document.getElementById('relativeTimeText');
+        const stateDateTime = document.getElementById('stateDateTime');
+        const stateFilename = document.getElementById('stateFilename');
+        const stateSize = document.getElementById('stateSize');
+        const stateIndex = document.getElementById('stateIndex');
+        const stateBadge = document.getElementById('stateBadge');
+        const restoreBtn = document.getElementById('restoreBtn');
+        const backupsTbody = document.getElementById('backupsTbody');
+
+        // Initial launch
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadI18n(currentLang);
+            await loadBackups();
+            startAutoPoll();
+            setupKeyboardShortcuts();
+        });
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') {
+                    if (selectedIndex > 0) selectSnapshotByIndex(selectedIndex - 1);
+                } else if (e.key === 'ArrowRight') {
+                    if (selectedIndex < backupsList.length - 1) selectSnapshotByIndex(selectedIndex + 1);
+                }
+            });
+        }
+
+        function t(key, replacements = {}) {
+            const parts = key.split('.');
+            let val = translations;
+            for (const p of parts) {
+                if (val && val[p] !== undefined) {
+                    val = val[p];
+                } else {
+                    return key;
+                }
+            }
+            if (typeof val !== 'string') return key;
+            for (const [k, v] of Object.entries(replacements)) {
+                val = val.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+            }
+            return val;
+        }
+
+        async function loadI18n(langCode) {
+            try {
+                const res = await fetch(`api.php?action=i18n&lang=${langCode}`);
+                const data = await res.json();
+                if (data.success) {
+                    currentLang = data.data.current_lang;
+                    translations = data.data.translations;
+                    availableLanguages = data.data.available_languages;
+                    localStorage.setItem('time_travel_lang', currentLang);
+                    
+                    updateLanguagePills();
+                    applyDOMTranslations();
+                }
+            } catch (e) {
+                console.error('Failed to load i18n:', e);
+            }
+        }
+
+        function updateLanguagePills() {
+            const btnTr = document.getElementById('langBtn_tr');
+            const btnEn = document.getElementById('langBtn_en');
+            
+            if (currentLang === 'tr') {
+                btnTr.className = 'px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30';
+                btnEn.className = 'px-2.5 py-1 rounded-md text-gray-400 hover:text-white';
+            } else {
+                btnEn.className = 'px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30';
+                btnTr.className = 'px-2.5 py-1 rounded-md text-gray-400 hover:text-white';
+            }
+        }
+
+        async function changeLanguage(langCode) {
+            await loadI18n(langCode);
+            await loadBackups(false);
+            showToast(t('ui.toast_language_changed', { lang: langCode.toUpperCase() }), 'info');
+        }
+
+        function applyDOMTranslations() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                
+                if (key === 'ui.auto_poll_active') {
+                    if (isAutoPolling) el.innerText = t('ui.auto_poll_active', { seconds: 2 });
+                    return;
+                }
+
+                const translated = t(key);
+                if (translated && translated !== key) {
+                    el.innerText = translated;
+                }
+            });
+        }
+
+        function startAutoPoll() {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(() => {
+                if (isAutoPolling) {
+                    loadBackups(false);
+                }
+            }, 2000);
+        }
+
+        function toggleAutoPoll() {
+            isAutoPolling = !isAutoPolling;
+            const pollText = document.getElementById('pollText');
+            const pollIndicator = document.getElementById('pollIndicator');
+            
+            if (isAutoPolling) {
+                pollText.innerText = t('ui.auto_poll_active', { seconds: 2 });
+                pollIndicator.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                showToast(t('ui.toast_auto_poll_active'), 'info');
+            } else {
+                pollText.innerText = t('ui.auto_poll_stopped');
+                pollIndicator.className = 'w-2 h-2 rounded-full bg-gray-500';
+                showToast(t('ui.toast_auto_poll_stopped'), 'info');
+            }
+        }
+
+        async function loadBackups(userInitiated = false) {
+            try {
+                const response = await fetch(`api.php?action=list&lang=${currentLang}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    showToast(result.message || t('ui.toast_api_error'), 'error');
+                    return;
+                }
+
+                backupsList = result.data.backups || [];
+                currentDbInfo = result.data.current_db || {};
+
+                updateHeaderStats();
+                updateSliderRange();
+                renderTable();
+                renderTimelineTicks();
+
+                if (userInitiated) {
+                    showToast(t('ui.toast_backups_updated'), 'success');
+                }
+            } catch (err) {
+                console.error('API Error:', err);
+                if (userInitiated) showToast(t('ui.toast_api_error'), 'error');
+            }
+        }
+
+        function updateHeaderStats() {
+            if (!currentDbInfo) return;
+            document.getElementById('dbFileName').innerText = (currentDbInfo.path || 'database.sqlite') + (currentDbInfo.is_wal_mode ? ' (WAL)' : '');
+            document.getElementById('dbFileSize').innerText = currentDbInfo.size_formatted || '0 B';
+            document.getElementById('dbLastMtime').innerText = t('ui.last_modified') + ': ' + (currentDbInfo.relative_mtime || 'Bilinmiyor');
+            document.getElementById('dbSnapshotTotal').innerText = backupsList.length + ' / 50';
+            document.getElementById('backupCountBadge').innerText = backupsList.length + ' / 50';
+
+            const writableBadge = document.getElementById('dbWritableBadge');
+            if (currentDbInfo.is_writable) {
+                writableBadge.innerText = t('ui.writable');
+                writableBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold';
+            } else {
+                writableBadge.innerText = t('ui.not_writable');
+                writableBadge.className = 'text-[10px] px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/30 font-semibold';
+            }
+        }
+
+        function updateSliderRange() {
+            if (backupsList.length === 0) {
+                timeSlider.min = 0;
+                timeSlider.max = 0;
+                timeSlider.value = 0;
+                timeSlider.disabled = true;
+                relativeTimeText.innerText = t('ui.toast_no_backups');
+                stateFilename.innerText = t('ui.toast_waiting_watcher');
+                restoreBtn.disabled = true;
+                restoreBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                sliderTooltip.style.display = 'none';
+                return;
+            }
+
+            sliderTooltip.style.display = 'flex';
+            timeSlider.disabled = false;
+            restoreBtn.disabled = false;
+            restoreBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            const total = backupsList.length;
+            timeSlider.min = 0;
+            timeSlider.max = total - 1;
+
+            if (isLiveState || selectedIndex >= total) {
+                selectedIndex = total - 1;
+                timeSlider.value = selectedIndex;
+            }
+
+            renderSelectedState(timeSlider.value);
+            document.getElementById('sliderMinLabel').innerText = backupsList[0].relative_time;
+        }
+
+        function renderTimelineTicks() {
+            const container = document.getElementById('timelineTicks');
+            if (!backupsList || backupsList.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const total = backupsList.length;
+            container.innerHTML = backupsList.map((b, idx) => {
+                const isActive = (idx === selectedIndex);
+                const isPinned = b.is_pinned;
+                let bgClass = 'bg-gray-700 hover:bg-amber-400';
+                if (isActive) bgClass = 'bg-amber-400 scale-150 shadow-md shadow-amber-500/50';
+                else if (isPinned) bgClass = 'bg-amber-500/80';
+
+                return `<span onclick="selectSnapshotByIndex(${idx})" title="${b.datetime} (${b.relative_time})" class="w-1.5 h-1.5 rounded-full cursor-pointer transition-all duration-150 ${bgClass}"></span>`;
+            }).join('');
+        }
+
+        function onSliderInput(val) {
+            isLiveState = (parseInt(val) === backupsList.length - 1);
+            selectedIndex = parseInt(val);
+            
+            reelSpinner.className = 'inline-block spin-reel-fast';
+            clearTimeout(window.reelSpinTimer);
+            window.reelSpinTimer = setTimeout(() => {
+                reelSpinner.className = 'inline-block spin-reel';
+            }, 500);
+
+            renderSelectedState(selectedIndex);
+        }
+
+        function onSliderChange(val) {
+            onSliderInput(val);
+        }
+
+        function selectSnapshotByIndex(index) {
+            if (index < 0 || index >= backupsList.length) return;
+            selectedIndex = index;
+            timeSlider.value = index;
+            isLiveState = (index === backupsList.length - 1);
+            renderSelectedState(index);
+        }
+
+        function renderSelectedState(index) {
+            if (!backupsList[index]) return;
+
+            const item = backupsList[index];
+            const isLatest = (parseInt(index) === backupsList.length - 1);
+
+            const min = parseFloat(timeSlider.min) || 0;
+            const max = parseFloat(timeSlider.max) || 1;
+            const percentage = max > min ? ((index - min) / (max - min)) * 100 : 100;
+            
+            sliderTooltip.style.left = `${percentage}%`;
+            if (percentage > 82) {
+                sliderTooltip.style.transform = 'translateX(-100%)';
+            } else if (percentage < 18) {
+                sliderTooltip.style.transform = 'translateX(0%)';
+            } else {
+                sliderTooltip.style.transform = 'translateX(-50%)';
+            }
+
+            tooltipText.innerText = isLatest ? t('ui.live_now_label') : item.relative_time;
+
+            if (isLatest) {
+                relativeTimeText.innerText = t('ui.live_state_label');
+                stateBadge.innerText = t('ui.snapshot_badge_live');
+                stateBadge.className = 'text-xs px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-semibold mono-font';
+            } else {
+                relativeTimeText.innerText = '⏱️ ' + item.relative_time;
+                stateBadge.innerText = t('ui.snapshot_badge_past');
+                stateBadge.className = 'text-xs px-2.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/30 font-semibold mono-font';
+            }
+
+            const pinnedBadge = document.getElementById('pinnedBadge');
+            const pinBtn = document.getElementById('pinBtn');
+            if (item.is_pinned) {
+                pinnedBadge.classList.remove('hidden');
+                pinBtn.innerText = '📌 İğneyi Kaldır';
+            } else {
+                pinnedBadge.classList.add('hidden');
+                pinBtn.innerText = '📌 İğnele';
+            }
+
+            stateDateTime.innerText = item.datetime;
+            stateFilename.innerText = item.filename;
+            stateSize.innerText = item.size_formatted;
+            stateIndex.innerText = (parseInt(index) + 1) + ' / ' + backupsList.length;
+
+            renderTimelineTicks();
+        }
+
+        async function togglePinCurrent() {
+            if (!backupsList[selectedIndex]) return;
+            const item = backupsList[selectedIndex];
+            try {
+                const res = await fetch('api.php?action=toggle_pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ timestamp: item.timestamp, lang: currentLang })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'info');
+                    await loadBackups(false);
+                }
+            } catch (e) {
+                showToast('Pin işlemi başarısız', 'error');
+            }
+        }
+
+        function downloadCurrentSnapshot() {
+            if (!backupsList[selectedIndex]) return;
+            const item = backupsList[selectedIndex];
+            window.location.href = `api.php?action=download&timestamp=${item.timestamp}`;
+            showToast('Snapshot indirmesi başlatıldı', 'info');
+        }
+
+        async function openDiffModal() {
+            if (!backupsList[selectedIndex]) return;
+            const item = backupsList[selectedIndex];
+            const diffModal = document.getElementById('diffModal');
+            const diffContent = document.getElementById('diffContent');
+
+            diffContent.innerHTML = '<p class="text-xs text-gray-400">Veritabanı tabloları karşılaştırılıyor...</p>';
+
+            diffModal.classList.remove('hidden');
+            setTimeout(() => {
+                diffModal.classList.remove('opacity-0');
+                document.getElementById('diffModalCard').classList.remove('scale-95');
+            }, 10);
+
+            try {
+                const res = await fetch(`api.php?action=diff&timestamp=${item.timestamp}&lang=${currentLang}`);
+                const data = await res.json();
+
+                if (data.success && data.data.diff) {
+                    diffContent.innerHTML = data.data.diff.map(d => `
+                        <div class="p-3 bg-[#0b0e16] rounded-xl border border-[#1c2333] flex justify-between items-center text-xs">
+                            <span class="mono-font font-bold text-amber-400">${d.table}</span>
+                            <span class="text-gray-300">Geçmiş: <strong class="mono-font">${d.snapshot_rows}</strong> | Canlı: <strong class="mono-font">${d.current_rows}</strong></span>
+                            <span class="px-2 py-0.5 rounded ${d.diff_value > 0 ? 'bg-emerald-500/20 text-emerald-400' : (d.diff_value < 0 ? 'bg-rose-500/20 text-rose-400' : 'bg-gray-800 text-gray-400')} font-semibold">${d.diff_text}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    diffContent.innerHTML = `<p class="text-xs text-rose-400">${data.message || 'Diff alınamadı.'}</p>`;
+                }
+            } catch (e) {
+                diffContent.innerHTML = '<p class="text-xs text-rose-400">Diff isteği sırasında hata oluştu.</p>';
+            }
+        }
+
+        function closeDiffModal() {
+            const diffModal = document.getElementById('diffModal');
+            diffModal.classList.add('opacity-0');
+            document.getElementById('diffModalCard').classList.add('scale-95');
+            setTimeout(() => {
+                diffModal.classList.add('hidden');
+            }, 200);
+        }
+
+        function resetToLiveState() {
+            if (backupsList.length > 0) {
+                isLiveState = true;
+                selectSnapshotByIndex(backupsList.length - 1);
+                showToast(t('ui.toast_live_selected'), 'info');
+            }
+        }
+
+        function renderTable() {
+            if (backupsList.length === 0) {
+                backupsTbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="py-8 text-center text-gray-500">
+                            ${t('ui.toast_no_backups')}. <code class="mono-font text-amber-400">php watcher.php</code>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const reversed = [...backupsList].reverse();
+
+            backupsTbody.innerHTML = reversed.map((item, revIdx) => {
+                const realIndex = backupsList.length - 1 - revIdx;
+                const isSelected = (realIndex === selectedIndex);
+                const rowClass = isSelected 
+                    ? 'bg-[#182030] border-l-4 border-amber-500 text-white' 
+                    : 'hover:bg-[#121724] text-gray-300 transition';
+
+                return `
+                    <tr class="${rowClass}">
+                        <td class="py-3.5 px-4 mono-font text-amber-400 font-semibold flex items-center gap-2">
+                            ${item.is_pinned ? '📌' : ''} ${item.timestamp}
+                        </td>
+                        <td class="py-3.5 px-4 mono-font">${item.datetime}</td>
+                        <td class="py-3.5 px-4">
+                            <span class="px-2 py-1 rounded bg-[#0b0e16] border border-[#1c2333] text-[11px] text-gray-300">
+                                ${item.relative_time}
+                            </span>
+                        </td>
+                        <td class="py-3.5 px-4 mono-font text-gray-400">${item.size_formatted}</td>
+                        <td class="py-3.5 px-4 text-right">
+                            <button onclick="selectSnapshotByIndex(${realIndex})" class="px-3 py-1 rounded-lg bg-[#0b0e16] hover:bg-amber-500 hover:text-black text-gray-300 text-xs font-semibold transition border border-[#1c2333]">
+                                ${t('ui.btn_select')}
+                            </button>
+                            <button onclick="quickRestore(${item.timestamp})" class="ml-1 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500 hover:text-black text-amber-300 text-xs font-bold transition border border-amber-500/30 whitespace-nowrap">
+                                ${t('ui.btn_table_restore')}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Modal triggers
+        function openRestoreModal() {
+            if (!backupsList[selectedIndex]) return;
+            const item = backupsList[selectedIndex];
+            document.getElementById('modalTargetTime').innerText = `${item.datetime} (${item.relative_time})`;
+            
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                document.getElementById('modalCard').classList.remove('scale-95');
+            }, 10);
+
+            document.getElementById('modalConfirmBtn').onclick = () => {
+                closeModal();
+                performRestore(item.timestamp);
+            };
+        }
+
+        function quickRestore(timestamp) {
+            const item = backupsList.find(b => b.timestamp === timestamp);
+            if (!item) return;
+            document.getElementById('modalTargetTime').innerText = `${item.datetime} (${item.relative_time})`;
+            
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                document.getElementById('modalCard').classList.remove('scale-95');
+            }, 10);
+
+            document.getElementById('modalConfirmBtn').onclick = () => {
+                closeModal();
+                performRestore(timestamp);
+            };
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('opacity-0');
+            document.getElementById('modalCard').classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        async function performRestore(timestamp) {
+            try {
+                showToast(t('ui.toast_restoring'), 'info');
+
+                const response = await fetch('api.php?action=restore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ timestamp, lang: currentLang })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    await loadBackups(false);
+                    resetToLiveState();
+                } else {
+                    showToast(result.message || t('ui.toast_restore_failed'), 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(t('ui.toast_api_error'), 'error');
+            }
+        }
+
+        async function triggerTestWrite() {
+            try {
+                showToast(t('ui.toast_writing_test'), 'info');
+
+                const response = await fetch('api.php?action=test_write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lang: currentLang })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    setTimeout(() => {
+                        loadBackups(false);
+                    }, 1200);
+                } else {
+                    showToast(result.message || t('ui.toast_api_error'), 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast(t('ui.toast_api_error'), 'error');
+            }
+        }
+
+        // Custom Toast system
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const bgColors = {
+                success: 'bg-[#0f1d19] border-emerald-500/50 text-emerald-300',
+                error: 'bg-[#230f14] border-rose-500/50 text-rose-300',
+                info: 'bg-[#181a24] border-amber-500/50 text-amber-300'
+            };
+
+            const icons = {
+                success: '✅',
+                error: '❌',
+                info: '⚡'
+            };
+
+            toast.className = `p-4 rounded-xl border backdrop-blur-md shadow-2xl transition-all duration-300 transform translate-x-10 opacity-0 pointer-events-auto flex items-center gap-3 text-xs font-semibold ${bgColors[type] || bgColors.info}`;
+            toast.innerHTML = `<span>${icons[type] || '⚡'}</span><span class="flex-1">${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-x-10', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-x-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Database & Backup files
+database.sqlite*
+backups/
+*.tmp
+*.log
+
+# Environment & OS files
+.DS_Store
+Thumbs.db
