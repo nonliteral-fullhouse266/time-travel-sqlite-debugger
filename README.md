@@ -1,48 +1,48 @@
-# ⏱️ Time-Travel SQLite Debugger (Veritabanı Zaman Makinesi)
+# ⏱️ Time-Travel SQLite Debugger (Database Time Machine)
 
-Lokal geliştirme ortamında bozulan veya istenmeyen değişiklik yapılan bir **SQLite** veritabanı dosyasını, tıpkı bir videoyu geri sarar gibi saniyeler içinde eski bir state'ine (örneğin 3 dakika öncesine) döndüren açık kaynaklı, ultra hafif web uygulaması ve CLI dinleyicisi.
+An open-source, ultra-lightweight web application and CLI daemon designed to track and instantly rewind a corrupted or modified **SQLite** database file back to any previous state (e.g. 3 minutes ago) during local development — just like scrubbing a video.
 
-> 🇬🇧 **English Documentation:** For English README, please see [README.en.md](README.en.md).
-
----
-
-## 🚀 Özellikler
-
-- **⚡ Sıfır Bağımlılık (Zero Dependencies):** Herhangi bir ağır PHP framework veya npm paketi gerektirmez. Saf PHP 8+ ve Vanilla JS.
-- **🌐 Çoklu Dil Desteği (i18n):** Dil dosyaları tamamen ayrılmıştır. Arayüzden tek tıkla dil değiştirilebilir (Örn: 🇹🇷 Türkçe, 🇬🇧 English). İnsanlar yeni dil dosyaları (`lang/xx.json`) ekleyerek projeyi kolayca çevirebilir.
-- **💾 SQLite WAL Modu Desteği:** `PRAGMA journal_mode=WAL;` kullanılan veritabanlarında `.sqlite-wal` ve `.sqlite-shm` dosyalarını anlık kopyalar ve geri yükler.
-- **🔍 Görsel Veri & Tablo Farkı İnceleme (Diff Viewer):** Zaman yolculuğu yapmadan önce o geçmiş an ile canlı veritabanı arasındaki tablo ve satır farklarını (`+3 satır (Canlıda)`) gösterir.
-- **📌 Snapshot İğneleme & Sabitleme:** Temizlik limitinden etkilenmesini istemediğiniz kritik snapshot'ları tek tıkla iğneleyerek süresiz saklayabilirsiniz.
-- **📥 Tek Tıkla Snapshot İndirme:** İstediğiniz geçmiş veritabanı durumunu `.sqlite` dosyası olarak bilgisayarınıza indirebilirsiniz.
-- **⌨️ Klavye Yön Tuşları Desteği:** Klavye **Sol Ok (⬅️)** ve **Sağ Ok (➡️)** tuşlarıyla zaman çubuğunda milisaniyelik adımlarla gezinebilirsiniz.
-- **🔄 Otomatik Anlık Snapshot (Watcher Daemon):** Arka planda çalışan `watcher.php` scripti `database.sqlite` dosyasındaki her değişikliği algılar ve anında zaman damgalı yedek (`backups/1715000000_database.sqlite`) oluşturur.
-- **🧹 Otomatik Temizlik:** Dizinde varsayılan olarak maksimum **50 yedek** tutar, iğnelenmemiş eski snapshot'ları otomatik siler.
+> 🇹🇷 **Türkçe Dokümantasyon:** Türkçe rehber için lütfen [README.tr.md](README.tr.md) dosyasına bakın.
 
 ---
 
-## 📁 Proje Yapısı
+## 🚀 Features
+
+- **⚡ Zero Dependencies:** Built with pure PHP 8+ and Vanilla JS. Requires no heavy frameworks or npm packages.
+- **🌐 Full i18n / Multi-Language:** Translation files are completely decoupled in `lang/`. Switch languages dynamically from the UI (e.g., 🇹🇷 Turkish, 🇬🇧 English). Easily contribute by adding or updating `lang/xx.json` files.
+- **💾 SQLite WAL Mode Aware:** Seamlessly backs up and restores `.sqlite-wal` and `.sqlite-shm` files for databases running `PRAGMA journal_mode=WAL;`.
+- **🔍 Visual Data & Table Diff Viewer:** Compare row counts and table changes (`+3 rows in live`) between any historic snapshot and your current live database before restoring.
+- **📌 Snapshot Pinning & Tagging:** Pin important snapshots with one click to protect them from auto-cleanup.
+- **📥 One-Click Snapshot Export:** Download any historic database state directly as a `.sqlite` file.
+- **⌨️ Keyboard Navigation Shortcuts:** Navigate through the timeline smoothly using **Left Arrow (⬅️)** and **Right Arrow (➡️)** keys.
+- **🔄 Automatic Instant Snapshots (Watcher Daemon):** Background CLI script (`watcher.php`) listens for modifications in `database.sqlite` and automatically creates timestamped snapshots (`backups/1715000000_database.sqlite`).
+- **🧹 Automatic Cleanup:** Maintains up to **50 backups**, purging older unpinned snapshots to prevent disk clutter.
+
+---
+
+## 📁 Project Layout
 
 ```
 time-travel/
 ├── index.html        # Chrono Console UI (Tailwind CSS + Vanilla JS + i18n Engine)
-├── api.php           # Snapshot listeleme, restore, diff, download ve i18n API
-├── watcher.php       # CLI arka plan dinleyici daemon scripti (WAL & Signal destekli)
-├── lang.php          # Çoklu dil (i18n) kütüphanesi
-├── lang/             # Dil JSON dosyaları dizini
-│   ├── tr.json       # Türkçe dil dosyası
-│   └── en.json       # İngilizce dil dosyası
-├── database.sqlite   # Hedef SQLite veritabanı (otomatik oluşur)
-├── backups/          # Zaman damgalı yedeklerin tutulduğu klasör (otomatik oluşur)
-├── README.md         # Türkçe kullanım ve kurulum rehberi
-└── README.en.md      # English documentation & guide
+├── api.php           # Snapshot listing, restoration, diff, export, and i18n API
+├── watcher.php       # CLI background listener daemon script (WAL & signal aware)
+├── lang.php          # Multi-language (i18n) helper class
+├── lang/             # JSON language files directory
+│   ├── tr.json       # Turkish language file
+│   └── en.json       # English language file
+├── database.sqlite   # Target SQLite database file (created automatically)
+├── backups/          # Timestamped backups directory (created automatically)
+├── README.md         # Primary English documentation
+└── README.tr.md      # Turkish documentation & guide
 ```
 
 ---
 
-## 🌍 Dil Dosyalarını Güncelleme ve Yeni Dil Ekleme Rehberi
+## 🌍 Translation Guide: Adding & Updating Language Files
 
-### 1. Yeni Dil Ekleme (Creating a New Translation)
-Projeyi farklı bir dile çevirmek için `lang/` klasörü içerisine hedef dil kodunda bir JSON dosyası oluşturun (Örn: `lang/es.json`, `lang/de.json`):
+### 1. Adding a New Language
+Create a JSON file inside `lang/` matching the ISO code (e.g., `lang/es.json`, `lang/de.json`):
 
 ```json
 {
@@ -55,45 +55,45 @@ Projeyi farklı bir dile çevirmek için `lang/` klasörü içerisine hedef dil 
 }
 ```
 
-### 2. Mevcut Dil Dosyalarını Güncelleme
-Mevcut bir dil dosyasında (`lang/tr.json` veya `lang/en.json`) metin düzenlemek için dosyayı açıp ilgili key altındaki metinleri değiştirin. Değişiklikler anında geçerli olur (sunucu yeniden başlatma gerekmez).
+### 2. Updating Existing Translations
+Open any file in `lang/*.json` and edit strings. Changes reflect immediately on the Web UI and CLI without restarting the server.
 
 ---
 
-## 💻 Kurulum ve Çalıştırma
+## 💻 Installation & Usage
 
-### 1. Watcher (Arka Plan Dinleyicisi) Başlatma
+### 1. Start the Watcher Daemon (Terminal 1)
 ```bash
 php watcher.php
 ```
-*Farklı bir dil seçeneğiyle (Örn: İngilizce) çalıştırmak isterseniz:*
+*To specify custom language or database file:*
 ```bash
 php watcher.php database.sqlite en
 ```
 
-### 2. Web Arayüzünü Başlatma
+### 2. Start Local Web Server (Terminal 2)
 ```bash
 php -S 127.0.0.1:8000
 ```
 
-### 3. Arayüze Erişme
-Tarayıcınızda açın: **`http://127.0.0.1:8000`**
+### 3. Open Web Interface
+Open your browser and navigate to: **`http://127.0.0.1:8000`**
 
 ---
 
-## 🧪 Nasıl Test Edilir?
+## 🧪 How to Test
 
-1. Web arayüzünü açın.
-2. **"✍️ Test Verisi Ekle (DB Write)"** butonuna tıklayın.
-3. Terminalde `watcher.php` çıktısını gözlemleyin:
+1. Open the web interface.
+2. Click **"✍️ Add Test Data (DB Write)"**.
+3. Observe terminal output from `watcher.php`:
    `[+] Created snapshot: 1715000000_database.sqlite`
-4. Zaman çubuğunu geriye sürükleyin veya **⬅️ / ➡️** ok tuşlarını kullanın.
-5. **"🔍 Fark İncele"** butonuna basarak tablo satır değişikliklerini görün.
-6. **"⚡ Bu State'e Geri Dön"** butonuna basarak veritabanınızı geçmişe döndürün!
+4. Drag the timeline slider or use **⬅️ / ➡️** arrow keys.
+5. Click **"🔍 Compare Diff"** to inspect table row changes.
+6. Click **"⚡ Restore To This State"** to rewind your database!
 
 ---
 
-## 🔒 Dosya ve İzin Yönetimi (Linux / Pardus)
+## 🔒 File Permissions (Linux / Unix)
 
 ```bash
 chmod -R 775 .
@@ -101,6 +101,6 @@ chmod -R 775 .
 
 ---
 
-## 📄 Lisans
+## 📄 License
 
-Bu proje **MIT** lisansı altında açık kaynak olarak sunulmuştur.
+This project is open-source under the **MIT** license.
