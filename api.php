@@ -104,13 +104,13 @@ try {
             $backups = [];
             
             if (is_dir($backupDir)) {
-                $files = glob($backupDir . '/*_database.sqlite*');
+                $files = glob($backupDir . '/*_database.sqlite');
                 if ($files) {
                     foreach ($files as $filePath) {
                         $filename = basename($filePath);
-                        if (preg_match('/^(\d+)(_pinned_.*)?_database\.sqlite$/', $filename, $matches)) {
+                        if (preg_match('/^(\d+)(_pinned)?_database\.sqlite$/', $filename, $matches)) {
                             $ts = (int)$matches[1];
-                            $isPinned = str_contains($filename, '_pinned_');
+                            $isPinned = !empty($matches[2]);
                             $size = filesize($filePath);
                             
                             $walPath = "{$backupDir}/{$ts}_database.sqlite-wal";
