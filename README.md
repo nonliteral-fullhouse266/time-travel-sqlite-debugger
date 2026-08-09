@@ -6,6 +6,13 @@ An open-source, ultra-lightweight web application and CLI daemon designed to tra
 
 ---
 
+​⚠️ Important Note on Architecture & SQLite
+​Strictly for Local Development: This tool is designed to be a zero-dependency, plug-and-play visual scrubber for single-user debugging. It uses a raw POSIX file copy/rename mechanism to achieve instant "time travel" without requiring specific PHP extensions or complex .backup commands.
+​Because a local debugging environment does not experience concurrent writes, race conditions, or active traffic, this file-copy method is perfectly safe here.
+​Do not use this tool or its file-copy logic in a production environment, especially if your SQLite database uses WAL (Write-Ahead Logging) mode, as copying live database files during active transactions will lead to data corruption.
+
+---
+
 ## 🚀 Features
 
 - **⚡ Zero Dependencies:** Built with pure PHP 8+ and Vanilla JS. Requires no heavy frameworks or npm packages.
