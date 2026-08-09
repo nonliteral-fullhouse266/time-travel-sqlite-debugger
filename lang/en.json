@@ -60,7 +60,7 @@
     "quick_tools_desc": "Write test data into SQLite DB to verify instant snapshot capture.",
     "btn_test_write": "✍️ Add Test Data (DB Write)",
     "btn_live_state": "🔴 Live State",
-    "watcher_tip": "Tip: Make sure php watcher.php is running in your terminal. Slider updates automatically as file changes.",
+    "watcher_tip": "Tip: Make sure php watcher.php is running in your terminal. You can control the slider using Keyboard Arrow Keys (⬅️ / ➡️).",
     "btn_refresh": "🔄 Refresh",
     "timeline_title": "TIMELINE",
     "slider_heading": "Time Travel Scrub Bar",
@@ -98,11 +98,8 @@
     "toast_waiting_watcher": "Watcher waiting for file changes...",
     "toast_live_selected": "Live state selected",
     "toast_restoring": "Restoring database snapshot...",
-    "toast_restore_failed": "Database restoration failed!",
-    "toast_restored_success": "Database restored successfully",
-    "toast_writing_test": "Writing test data...",
-    "toast_test_written": "Test data written",
-    "toast_language_changed": "Language changed to: {lang}",
-    "footer_copy": "Time-Travel SQLite Debugger © 2026 - Open Source Database Time Machine"
+    "toast_restore_failed": "Failed to restore database snapshot",
+    "toast_writing_test": "Writing test data into database...",
+    "toast_language_changed": "Language changed to {lang}"
   }
 }
