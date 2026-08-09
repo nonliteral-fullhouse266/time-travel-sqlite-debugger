@@ -847,26 +847,29 @@
                 const realIndex = backupsList.length - 1 - revIdx;
                 const isSelected = (realIndex === selectedIndex);
                 const rowClass = isSelected 
-                    ? 'bg-[#182030] border-l-4 border-amber-500 text-white' 
+                    ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-l-4 border-amber-500 text-white font-medium shadow-inner' 
                     : 'hover:bg-[#121724] text-gray-300 transition';
 
                 return `
                     <tr class="${rowClass}">
-                        <td class="py-3.5 px-4 mono-font text-amber-400 font-semibold flex items-center gap-2">
-                            ${item.is_pinned ? '📌' : ''} ${item.timestamp}
+                        <td class="py-3.5 px-4 mono-font text-amber-400 font-semibold whitespace-nowrap">
+                            <div class="flex items-center gap-2">
+                                <span class="w-5 text-center inline-block">${item.is_pinned ? '📌' : '<span class="opacity-0">📌</span>'}</span>
+                                <span class="${isSelected ? 'text-amber-300 font-bold' : 'text-amber-400/90'}">${item.timestamp}</span>
+                            </div>
                         </td>
-                        <td class="py-3.5 px-4 mono-font">${item.datetime}</td>
+                        <td class="py-3.5 px-4 mono-font text-gray-200">${item.datetime}</td>
                         <td class="py-3.5 px-4">
-                            <span class="px-2 py-1 rounded bg-[#0b0e16] border border-[#1c2333] text-[11px] text-gray-300">
+                            <span class="px-2 py-1 rounded-md bg-[#0b0e16] border border-[#1c2333] text-[11px] text-gray-300 inline-block font-sans">
                                 ${item.relative_time}
                             </span>
                         </td>
-                        <td class="py-3.5 px-4 mono-font text-gray-400">${item.size_formatted}</td>
-                        <td class="py-3.5 px-4 text-right">
-                            <button onclick="selectSnapshotByIndex(${realIndex})" class="px-3 py-1 rounded-lg bg-[#0b0e16] hover:bg-amber-500 hover:text-black text-gray-300 text-xs font-semibold transition border border-[#1c2333]">
+                        <td class="py-3.5 px-4 mono-font text-gray-400 font-medium">${item.size_formatted}</td>
+                        <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                            <button onclick="selectSnapshotByIndex(${realIndex})" class="px-3 py-1.5 rounded-lg bg-[#10141e] hover:bg-[#1d2638] text-gray-300 hover:text-white text-xs font-semibold transition border border-[#263147]">
                                 ${t('ui.btn_select')}
                             </button>
-                            <button onclick="quickRestore(${item.timestamp})" class="ml-1 px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500 hover:text-black text-amber-300 text-xs font-bold transition border border-amber-500/30 whitespace-nowrap">
+                            <button onclick="quickRestore(${item.timestamp})" class="ml-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs shadow-md shadow-amber-500/10 transition border border-amber-400/40 whitespace-nowrap">
                                 ${t('ui.btn_table_restore')}
                             </button>
                         </td>
