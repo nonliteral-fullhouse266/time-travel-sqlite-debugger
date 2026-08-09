@@ -6,6 +6,14 @@ Lokal geliştirme ortamında bozulan veya istenmeyen değişiklik yapılan bir *
 
 ---
 
+**​⚠️ Mimari ve SQLite Üzerine Önemli Not**
+
+**​Sadece Yerel Geliştirme (Local Development) İçindir:** Bu araç, tek kullanıcılı hata ayıklama (debugging) süreçleri için sıfır bağımlılığa sahip (zero-dependency), tak-çalıştır bir görsel zaman kaydırıcısı olarak tasarlanmıştır. Özel PHP eklentilerine veya karmaşık .backup komutlarına ihtiyaç duymadan anında "zamanda yolculuk" yapabilmek için doğrudan standart dosya kopyalama/yeniden adlandırma mekanizmasını kullanır.
+​Yerel bir hata ayıklama ortamında eşzamanlı yazma işlemleri (concurrent writes), yarış durumları (race conditions) veya aktif trafik yaşanmadığı için, bu dosya kopyalama yöntemi bu kullanım senaryosunda tamamen güvenlidir.
+**​Bu aracı veya sahip olduğu dosya kopyalama mantığını kesinlikle canlı sunucu (production) ortamında kullanmayın.** Özellikle SQLite veritabanınız WAL (Write-Ahead Logging) modunda çalışıyorsa, aktif işlemler sırasında canlı veritabanı dosyalarını kopyalamak veri bozulmasına (corruption) yol açacaktır.
+
+---
+
 ## 🚀 Özellikler
 
 - **⚡ Sıfır Bağımlılık (Zero Dependencies):** Herhangi bir ağır PHP framework veya npm paketi gerektirmez. Saf PHP 8+ ve Vanilla JS.
