@@ -6,20 +6,21 @@ An open-source, ultra-lightweight web application and CLI daemon designed to tra
 
 ---
 
-**​⚠️ Important Note on Architecture & SQLite**
+**⚠️ Important Note on Architecture & Local Development**
 
-**​Strictly for Local Development:** This tool is designed to be a zero-dependency, plug-and-play visual scrubber for single-user debugging. It uses a raw POSIX file copy/rename mechanism to achieve instant "time travel" without requiring specific PHP extensions or complex .backup commands.
-​Because a local debugging environment does not experience concurrent writes, race conditions, or active traffic, this file-copy method is perfectly safe here.
-**​Do not use this tool or its file-copy logic in a production environment**, especially if your SQLite database uses WAL (Write-Ahead Logging) mode, as copying live database files during active transactions will lead to data corruption.
+- **Strictly for Local Development:** This tool is designed for zero-dependency, local development debugging.
+- **WAL Checkpointing & Abort Protection:** Before creating any snapshot or performing a restore, the tool executes `PRAGMA wal_checkpoint(TRUNCATE);` via PDO. If the WAL checkpoint fails (e.g. database busy or locked), the operation strictly aborts to prevent recording or loading un-flushed data. When successful, all WAL frames write into the main `.sqlite` file, eliminating race conditions without requiring separate `-wal` or `-shm` backup files.
+- **Pre-Restore Safety Net & Validation:** Prior to any restoration, an automatic `pre-restore-safety-snapshot` is generated. If safety snapshot creation fails, the restore process immediately aborts to protect current state. Post-restoration, `PRAGMA integrity_check;` validates database structure.
+- **Localhost Security & Quotas:** API access is restricted strictly to socket peer IPs (`127.0.0.1` / `::1`), and disk usage is managed via 50-file unpinned snapshot count and 1 GB storage limits.
 
 ---
 
 ## 🚀 Features
 
 - **⚡ Zero Dependencies:** Built with pure PHP 8+ and Vanilla JS. Requires no heavy frameworks or npm packages.
-- **💾 WAL Checkpoint & Core Integrity:** Flushes all WAL frames via `PRAGMA wal_checkpoint(TRUNCATE);` before generating a snapshot. Backs up single, consistent `.sqlite` files and eliminates race conditions.
+- **💾 WAL Checkpoint & Core Integrity:** Flushes all WAL frames via `PRAGMA wal_checkpoint(TRUNCATE);` before generating a snapshot. Strictly aborts snapshot generation if checkpoint fails.
 - **⏱️ Microtime & Unique ID Identification:** Uses `microtime(true)` + `uniqid()` (`{timestamp}_{uniqid}_database.sqlite`) to prevent snapshot naming collisions.
-- **🛡️ Pre-Restore Safety Net:** Automatically creates a `pre-restore-safety-snapshot` right before overwriting the active database, preventing accidental data loss.
+- **🛡️ Pre-Restore Safety Net:** Automatically creates a `pre-restore-safety-snapshot` right before overwriting the active database. Aborts restoration immediately if safety backup fails.
 - **✅ Post-Restore Integrity Verification:** Runs `PRAGMA integrity_check;` immediately after restoration and reports validation results back to the frontend.
 - **🔍 Visual Data & Table Diff Viewer:** Compare row counts and table changes (`+3 rows in live`) between any historic snapshot and your current live database before restoring.
 - **⚠️ Application Worker Restart Warning:** Prominently alerts developers after restore completion to restart running app workers (e.g. Laravel/PHP workers) to clear cached SQLite connections.
@@ -104,14 +105,20 @@ Open your browser and navigate to: **`http://127.0.0.1:8000`**
 
 ---
 
-## 🔒 File Permissions (Linux / Unix)
+## 🔒 File Permissions & Least Privilege (Linux / Unix)
 
-Make sure you are inside the tool's directory, then run:
+For proper local read/write access between your CLI user and Web Server (e.g., `www-data` or PHP built-in server) without granting unnecessary execution bits to SQLite data or source files, apply granular permissions:
 
 ```bash
-chmod -R 775 .
+# Set directory permissions (775) for listing & writing
+find . -type d -exec chmod 775 {} +
+
+# Set standard file permissions (664) for read/write
+find . -type f -exec chmod 664 {} +
+
+# Grant execution permission strictly to the CLI daemon script
+chmod +x watcher.php
 ```
-(Note: This grants the necessary read/write permissions for both your CLI and Web Server to manage the SQLite and backup files locally without friction.)
 
 ---
 

@@ -6,20 +6,21 @@ Lokal geliştirme ortamında bozulan veya istenmeyen değişiklik yapılan bir *
 
 ---
 
-**​⚠️ Mimari ve SQLite Üzerine Önemli Not**
+**⚠️ Mimari ve Yerel Geliştirme Üzerine Önemli Not**
 
-**​Sadece Yerel Geliştirme (Local Development) İçindir:** Bu araç, tek kullanıcılı hata ayıklama (debugging) süreçleri için sıfır bağımlılığa sahip (zero-dependency), tak-çalıştır bir görsel zaman kaydırıcısı olarak tasarlanmıştır. Özel PHP eklentilerine veya karmaşık .backup komutlarına ihtiyaç duymadan anında "zamanda yolculuk" yapabilmek için doğrudan standart dosya kopyalama/yeniden adlandırma mekanizmasını kullanır.
-​Yerel bir hata ayıklama ortamında eşzamanlı yazma işlemleri (concurrent writes), yarış durumları (race conditions) veya aktif trafik yaşanmadığı için, bu dosya kopyalama yöntemi bu kullanım senaryosunda tamamen güvenlidir.
-**​Bu aracı veya sahip olduğu dosya kopyalama mantığını kesinlikle canlı sunucu (production) ortamında kullanmayın.** Özellikle SQLite veritabanınız WAL (Write-Ahead Logging) modunda çalışıyorsa, aktif işlemler sırasında canlı veritabanı dosyalarını kopyalamak veri bozulmasına (corruption) yol açacaktır.
+- **Sadece Yerel Geliştirme (Local Development) İçindir:** Bu araç, sıfır bağımlılığa sahip (zero-dependency) yerel geliştirme ve hata ayıklama süreçleri için tasarlanmıştır.
+- **WAL Checkpoint & İptal Koruması (Abort):** Herhangi bir snapshot alınmadan veya restore yapılmadan hemen önce araç PDO üzerinden `PRAGMA wal_checkpoint(TRUNCATE);` komutunu çalıştırır. WAL checkpoint başarısız olursa (örneğin veritabanı kilitliyse), tutarsız veri saklamamak veya yüklememek için snapshot alma ya da restore işlemi derhal iptal edilir (abort). Checkpoint başarılı olduğunda tüm WAL verileri ana `.sqlite` dosyasına yazılır ve ayrı `-wal`/`-shm` kopyalarına ihtiyaç duyulmaz.
+- **Güvenlik Ağı ve İptal Mekanizması:** Restore öncesinde aktif veritabanının otomatik `pre-restore-safety-snapshot` yedeği alınır. Güvenlik yedeği alınamazsa aktif veriyi korumak adına restore işlemi derhal iptal edilir (abort). Restore sonrasında ise `PRAGMA integrity_check;` ile veritabanı bütünlüğü doğrulanır.
+- **Lokal IP Güvenliği ve Limitleme:** API erişimi istemcinin doğrudan soket IP adresi (`127.0.0.1` / `::1`) üzerinden doğrulanır. Klasör depolaması 50 dosya limiti ve 1 GB üst sınırı ile otomatik yönetilir.
 
 ---
 
 ## 🚀 Özellikler
 
 - **⚡ Sıfır Bağımlılık (Zero Dependencies):** Herhangi bir ağır PHP framework veya npm paketi gerektirmez. Saf PHP 8+ ve Vanilla JS.
-- **💾 WAL Checkpoint & Veri Bütünlüğü (Core Integrity):** Snapshot alınmadan hemen önce `PRAGMA wal_checkpoint(TRUNCATE);` komutunu çalıştırarak tüm WAL verisini ana `.sqlite` dosyasına yazar. Race condition riskini sıfırlar, tekil ve tutarlı `.sqlite` dosyası yedekler.
+- **💾 WAL Checkpoint & Veri Bütünlüğü (Core Integrity):** Snapshot alınmadan hemen önce `PRAGMA wal_checkpoint(TRUNCATE);` çalıştırarak WAL verisini ana dosyaya yazar. Checkpoint başarısız olursa snapshot işlemini derhal iptal eder (abort).
 - **⏱️ Microtime & Benzersiz ID Kimliklendirme:** Snapshot isimlerinde `microtime(true)` ve `uniqid()` (`{timestamp}_{uniqid}_database.sqlite`) kullanarak aynı saniye içindeki çakışmaları engeller.
-- **🛡️ Otomatik Güvenlik Ağı (Pre-Restore Safety Snapshot):** Kullanıcı restore işlemi yapmadan HEMEN ÖNCE mevcut aktif veritabanının otomatik yedeğini alır.
+- **🛡️ Otomatik Güvenlik Ağı (Pre-Restore Safety Snapshot):** Restore yapmadan HEMEN ÖNCE aktif veritabanının otomatik yedeğini alır. Güvenlik yedeği alınamazsa restore işlemini iptal eder (abort).
 - **✅ Restore Sonrası Doğrulama (PRAGMA integrity_check):** Restore bittiğinde PDO ile veritabanına bağlanıp `PRAGMA integrity_check;` komutunu çalıştırır ve sonucu arayüze döner.
 - **🔍 Görsel Veri & Tablo Farkı İnceleme (Diff Viewer):** Zaman yolculuğu yapmadan önce o geçmiş an ile canlı veritabanı arasındaki tablo ve satır farklarını (`+3 satır (Canlıda)`) gösterir.
 - **⚠️ Uygulama Worker Yeniden Başlatma Uyarısı:** Restore sonrasında kullanıcıya çalışan uygulamasını (örn. Laravel/PHP worker) yeniden başlatması gerektiğini belirgin bir uyarı mesajıyla bildirir.
@@ -104,10 +105,19 @@ Tarayıcınızda açın: **`http://127.0.0.1:8000`**
 
 ---
 
-## 🔒 Dosya ve İzin Yönetimi (Linux / Unix)
+## 🔒 Dosya ve İzin Yönetimi (Linux / Unix - Least Privilege)
+
+CLI kullanıcınız ile Web sunucunuz (örn. `www-data` veya PHP dahili sunucusu) arasında erişim sorunları yaşamamak ve SQLite veri/kod dosyalarına gereksiz çalıştırma (`+x`) yetkisi vermemek için en az ayrıcalık (Least Privilege) ilkesine uygun izinleri tanımlayın:
 
 ```bash
-chmod -R 775 .
+# Klasörler için okuma, yazma ve gezinme izni (775)
+find . -type d -exec chmod 775 {} +
+
+# Standart dosyalar (SQLite, PHP, HTML, JSON) için okuma ve yazma izni (664)
+find . -type f -exec chmod 664 {} +
+
+# Yalnızca CLI watcher betiğine çalıştırma yetkisi verin
+chmod +x watcher.php
 ```
 
 ---
