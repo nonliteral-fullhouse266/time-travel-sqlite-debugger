@@ -105,19 +105,16 @@ Open your browser and navigate to: **`http://127.0.0.1:8000`**
 
 ---
 
-## 🔒 File Permissions & Least Privilege (Linux / Unix)
+## 🔒 File Permissions (Linux / Unix)
 
-For proper local read/write access between your CLI user and Web Server (e.g., `www-data` or PHP built-in server) without granting unnecessary execution bits to SQLite data or source files, apply granular permissions:
+To set clean local file permissions without granting execution bits to SQLite data or source files, run:
 
 ```bash
-# Set directory permissions (775) for listing & writing
+# Directory permissions (775)
 find . -type d -exec chmod 775 {} +
 
-# Set standard file permissions (664) for read/write
+# File permissions (664)
 find . -type f -exec chmod 664 {} +
-
-# Grant execution permission strictly to the CLI daemon script
-chmod +x watcher.php
 ```
 
 ---

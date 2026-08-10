@@ -105,19 +105,16 @@ Tarayıcınızda açın: **`http://127.0.0.1:8000`**
 
 ---
 
-## 🔒 Dosya ve İzin Yönetimi (Linux / Unix - Least Privilege)
+## 🔒 Dosya ve İzin Yönetimi (Linux / Unix)
 
-CLI kullanıcınız ile Web sunucunuz (örn. `www-data` veya PHP dahili sunucusu) arasında erişim sorunları yaşamamak ve SQLite veri/kod dosyalarına gereksiz çalıştırma (`+x`) yetkisi vermemek için en az ayrıcalık (Least Privilege) ilkesine uygun izinleri tanımlayın:
+Veritabanı ve kaynak kod dosyalarına gereksiz çalıştırma (`+x`) yetkisi vermeden lokal ortamda temiz dosya izinlerini tanımlamak için:
 
 ```bash
-# Klasörler için okuma, yazma ve gezinme izni (775)
+# Klasör izinleri (775)
 find . -type d -exec chmod 775 {} +
 
-# Standart dosyalar (SQLite, PHP, HTML, JSON) için okuma ve yazma izni (664)
+# Dosya izinleri (664)
 find . -type f -exec chmod 664 {} +
-
-# Yalnızca CLI watcher betiğine çalıştırma yetkisi verin
-chmod +x watcher.php
 ```
 
 ---
