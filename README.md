@@ -103,9 +103,12 @@ Open your browser and navigate to: **`http://127.0.0.1:8000`**
 
 ## 🔒 File Permissions (Linux / Unix)
 
+Make sure you are inside the tool's directory, then run:
+
 ```bash
 chmod -R 775 .
 ```
+(Note: This grants the necessary read/write permissions for both your CLI and Web Server to manage the SQLite and backup files locally without friction.)
 
 ---
 
