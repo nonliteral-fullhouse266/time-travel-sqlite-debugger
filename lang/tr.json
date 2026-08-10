@@ -100,6 +100,7 @@
     "toast_restoring": "Veritabanı geri yükleniyor...",
     "toast_restore_failed": "Geri yükleme başarısız!",
     "toast_restored_success": "Veritabanı başarıyla geri yüklendi",
+    "toast_restore_worker_warning": "Uyarı: Çalışan uygulamanızın (örn. Laravel/PHP worker) SQLite bağlantısını koparması için uygulamanızı yeniden başlatmanız gerekebilir.",
     "toast_writing_test": "Test verisi yazılıyor...",
     "toast_test_written": "Test verisi yazıldı",
     "toast_language_changed": "Dil değiştirildi: {lang}",

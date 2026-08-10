@@ -3,13 +3,31 @@
  * Time-Travel SQLite Debugger - API Endpoint
  * 
  * Handles snapshot inventory listing, database restoration, WAL handling,
- * snapshot pinning, test write simulation, snapshot download, data diff,
- * and live inspection endpoints with atomic file locks and retry backoff.
+ * snapshot pinning, pre-restore safety snapshots, integrity verification,
+ * test write simulation, snapshot download, data diff, and live inspection endpoints.
  */
 
 require_once __DIR__ . '/lang.php';
 
 date_default_timezone_set('Europe/Istanbul');
+
+// Security Configuration: Restrict API access to localhost
+$allowOnlyLocalhost = true;
+
+if ($allowOnlyLocalhost) {
+    $remoteIp = $_SERVER['REMOTE_ADDR'] ?? '';
+    $allowedIps = ['127.0.0.1', '::1', 'localhost'];
+    if (!in_array($remoteIp, $allowedIps, true)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success'   => false,
+            'message'   => 'Access denied. Time-Travel SQLite Debugger is restricted to localhost requests.',
+            'remote_ip' => $remoteIp
+        ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+        exit;
+    }
+}
 
 $targetDb  = __DIR__ . '/database.sqlite';
 $backupDir = __DIR__ . '/backups';
@@ -56,6 +74,70 @@ function safeAtomicCopy(string $src, string $dst): bool {
     return false;
 }
 
+/**
+ * Executes PRAGMA wal_checkpoint(TRUNCATE) via PDO to flush all WAL frames into main database file.
+ */
+function checkpointWal(string $dbPath): bool {
+    if (!file_exists($dbPath) || filesize($dbPath) === 0) return false;
+    if (extension_loaded('pdo_sqlite') || (class_exists('PDO') && in_array('sqlite', PDO::getAvailableDrivers()))) {
+        try {
+            $pdo = new PDO("sqlite:" . $dbPath);
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $pdo->exec("PRAGMA wal_checkpoint(TRUNCATE);");
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+    return false;
+}
+
+/**
+ * Helper to locate snapshot file by identifier (filename, timestamp, or uniqid).
+ * Strictly prevents path traversal, glob wildcards, and directory escape.
+ */
+function findSnapshotFile(string $backupDir, string $identifier): ?string {
+    $identifier = trim($identifier);
+    if ($identifier === '' || str_contains($identifier, '/') || str_contains($identifier, '\\') || str_contains($identifier, '..')) {
+        return null;
+    }
+
+    // Sanitize against glob metacharacters (*, ?, [, ])
+    $safeId = preg_replace('/[^a-zA-Z0-9._-]/', '', $identifier);
+    if (empty($safeId)) return null;
+
+    $backupDirReal = realpath($backupDir);
+    if (!$backupDirReal) return null;
+
+    $directPath = "{$backupDirReal}/{$safeId}";
+    if (file_exists($directPath)) {
+        $real = realpath($directPath);
+        if ($real && str_starts_with($real, $backupDirReal . DIRECTORY_SEPARATOR)) {
+            return $real;
+        }
+    }
+
+    // Match by timestamp or uniqid substring safely without raw glob metacharacters
+    $matches = glob($backupDirReal . '/*' . globquote($safeId) . '*_database.sqlite');
+    if ($matches) {
+        foreach ($matches as $match) {
+            $real = realpath($match);
+            if ($real && str_starts_with($real, $backupDirReal . DIRECTORY_SEPARATOR)) {
+                return $real;
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Escape glob special characters
+ */
+function globquote(string $string): string {
+    return preg_replace('/[   *?\[\]!{} ]/', '\\\\$0', $string);
+}
+
 try {
     $action = $_GET['action'] ?? $_POST['action'] ?? 'list';
     $lang   = $_GET['lang']   ?? $_POST['lang']   ?? 'tr';
@@ -81,18 +163,16 @@ try {
             break;
 
         case 'download':
-            $timestamp = $_GET['timestamp'] ?? $_POST['timestamp'] ?? null;
-            if (!$timestamp) {
+            $identifier = $_GET['identifier'] ?? $_GET['timestamp'] ?? $_POST['identifier'] ?? $_POST['timestamp'] ?? null;
+            if (!$identifier) {
                 sendJsonResponse(false, t('api.no_timestamp'), [], 400);
             }
-            $ts = (int)$timestamp;
-            $matches = glob("{$backupDir}/{$ts}*_database.sqlite");
-            if (!$matches || !file_exists($matches[0])) {
-                sendJsonResponse(false, t('api.file_not_found', ['file' => "{$ts}_database.sqlite"]), [], 404);
+            $filePath = findSnapshotFile($backupDir, (string)$identifier);
+            if (!$filePath) {
+                sendJsonResponse(false, t('api.file_not_found', ['file' => $identifier]), [], 404);
             }
 
-            $filePath = $matches[0];
-            $downloadName = "snapshot_" . date('Ymd_His', $ts) . ".sqlite";
+            $downloadName = "snapshot_" . basename($filePath);
 
             header('Content-Type: application/x-sqlite3');
             header('Content-Disposition: attachment; filename="' . $downloadName . '"');
@@ -108,18 +188,23 @@ try {
                 if ($files) {
                     foreach ($files as $filePath) {
                         $filename = basename($filePath);
-                        if (preg_match('/^(\d+)(_pinned)?_database\.sqlite$/', $filename, $matches)) {
-                            $ts = (int)$matches[1];
-                            $isPinned = !empty($matches[2]);
-                            $size = filesize($filePath);
-                            
-                            $walPath = "{$backupDir}/{$ts}_database.sqlite-wal";
-                            if (file_exists($walPath)) $size += filesize($walPath);
+                        // Regex matches {timestamp}_{uniqid}_(pinned|prerestore)?_database.sqlite as well as legacy {timestamp}_database.sqlite
+                        if (preg_match('/^([0-9.]+)(?:_([a-zA-Z0-9]{13}))?(_pinned|_prerestore)?_database\.sqlite$/', $filename, $matches)) {
+                            $rawTs    = (float)$matches[1];
+                            $ts       = (int)$rawTs;
+                            $uniqid   = $matches[2] ?? '';
+                            $tag      = $matches[3] ?? '';
+                            $isPinned = ($tag === '_pinned');
+                            $isSafety = ($tag === '_prerestore');
+                            $size     = filesize($filePath);
 
                             $backups[] = [
-                                'timestamp'     => $ts,
+                                'timestamp'     => $rawTs,
+                                'ts_int'        => $ts,
+                                'uniqid'        => $uniqid,
                                 'filename'      => $filename,
                                 'is_pinned'     => $isPinned,
+                                'is_safety'     => $isSafety,
                                 'datetime'      => date('Y-m-d H:i:s', $ts),
                                 'time_formatted'=> date('H:i:s', $ts),
                                 'size'          => $size,
@@ -160,24 +245,22 @@ try {
             break;
 
         case 'toggle_pin':
-            $timestamp = $_GET['timestamp'] ?? $_POST['timestamp'] ?? ($jsonData['timestamp'] ?? null);
-            if (!$timestamp) sendJsonResponse(false, t('api.no_timestamp'), [], 400);
+            $identifier = $_GET['identifier'] ?? $_GET['timestamp'] ?? $_POST['identifier'] ?? $_POST['timestamp'] ?? ($jsonData['identifier'] ?? $jsonData['timestamp'] ?? null);
+            if (!$identifier) sendJsonResponse(false, t('api.no_timestamp'), [], 400);
 
-            $ts = (int)$timestamp;
-            $files = glob("{$backupDir}/{$ts}*_database.sqlite");
-            if (!$files) sendJsonResponse(false, t('api.file_not_found', ['file' => $ts]), [], 404);
+            $oldPath = findSnapshotFile($backupDir, (string)$identifier);
+            if (!$oldPath) sendJsonResponse(false, t('api.file_not_found', ['file' => $identifier]), [], 404);
 
-            $oldPath = $files[0];
             $filename = basename($oldPath);
 
             if (str_contains($filename, '_pinned_')) {
-                $newFilename = "{$ts}_database.sqlite";
+                $newFilename = str_replace('_pinned_database.sqlite', '_database.sqlite', $filename);
                 $newPath = "{$backupDir}/{$newFilename}";
                 rename($oldPath, $newPath);
                 $msg = "Snapshot iğnesi kaldırıldı.";
                 $pinnedStatus = false;
             } else {
-                $newFilename = "{$ts}_pinned_database.sqlite";
+                $newFilename = str_replace('_database.sqlite', '_pinned_database.sqlite', $filename);
                 $newPath = "{$backupDir}/{$newFilename}";
                 rename($oldPath, $newPath);
                 $msg = "Snapshot 📌 olarak iğnelendi.";
@@ -185,21 +268,19 @@ try {
             }
 
             sendJsonResponse(true, $msg, [
-                'timestamp' => $ts,
+                'identifier'=> $identifier,
                 'is_pinned' => $pinnedStatus,
                 'filename'  => $newFilename
             ]);
             break;
 
         case 'diff':
-            $timestamp = $_GET['timestamp'] ?? $_POST['timestamp'] ?? ($jsonData['timestamp'] ?? null);
-            if (!$timestamp) sendJsonResponse(false, t('api.no_timestamp'), [], 400);
+            $identifier = $_GET['identifier'] ?? $_GET['timestamp'] ?? $_POST['identifier'] ?? $_POST['timestamp'] ?? ($jsonData['identifier'] ?? $jsonData['timestamp'] ?? null);
+            if (!$identifier) sendJsonResponse(false, t('api.no_timestamp'), [], 400);
 
-            $ts = (int)$timestamp;
-            $matches = glob("{$backupDir}/{$ts}*_database.sqlite");
-            if (!$matches) sendJsonResponse(false, t('api.file_not_found', ['file' => $ts]), [], 404);
+            $snapshotDb = findSnapshotFile($backupDir, (string)$identifier);
+            if (!$snapshotDb) sendJsonResponse(false, t('api.file_not_found', ['file' => $identifier]), [], 404);
 
-            $snapshotDb = $matches[0];
             $diffData = [];
 
             if (extension_loaded('pdo_sqlite') || (class_exists('PDO') && in_array('sqlite', PDO::getAvailableDrivers()))) {
@@ -242,61 +323,73 @@ try {
             }
 
             sendJsonResponse(true, "Diff özeti hazırlandı.", [
-                'timestamp' => $ts,
-                'datetime'  => date('Y-m-d H:i:s', $ts),
-                'diff'      => $diffData
+                'identifier' => $identifier,
+                'filename'   => basename($snapshotDb),
+                'diff'       => $diffData
             ]);
             break;
 
         case 'restore':
-            $timestamp = $_GET['timestamp'] ?? $_POST['timestamp'] ?? ($jsonData['timestamp'] ?? null);
+            $identifier = $_GET['identifier'] ?? $_GET['timestamp'] ?? $_POST['identifier'] ?? $_POST['timestamp'] ?? ($jsonData['identifier'] ?? $jsonData['timestamp'] ?? null);
 
-            if (!$timestamp) {
+            if (!$identifier) {
                 sendJsonResponse(false, t('api.no_timestamp'), [], 400);
             }
 
-            $ts = (int)$timestamp;
-            $matches = glob("{$backupDir}/{$ts}*_database.sqlite");
+            $backupFilePath = findSnapshotFile($backupDir, (string)$identifier);
 
-            if (!$matches) {
-                sendJsonResponse(false, t('api.file_not_found', ['file' => "{$ts}_database.sqlite"]), [], 404);
+            if (!$backupFilePath || !file_exists($backupFilePath)) {
+                sendJsonResponse(false, t('api.file_not_found', ['file' => $identifier]), [], 404);
             }
 
-            $backupFilePath = $matches[0];
             $backupFilename = basename($backupFilePath);
 
             if (file_exists($targetDb) && !is_writable($targetDb)) {
                 sendJsonResponse(false, t('api.no_write_perm', ['file' => $targetDb]), [], 403);
             }
 
-            // Safe Atomic restore copy with retry backoff
+            // Phase 2: Automatic Pre-Restore Safety Snapshot
+            $safetySnapshotName = null;
+            if (file_exists($targetDb) && filesize($targetDb) > 0) {
+                checkpointWal($targetDb);
+                $safeTs  = sprintf('%.4f', microtime(true));
+                $safeUid = uniqid();
+                $safetySnapshotName = "{$safeTs}_{$safeUid}_prerestore_database.sqlite";
+                $safetyPath = "{$backupDir}/{$safetySnapshotName}";
+                safeAtomicCopy($targetDb, $safetyPath);
+            }
+
+            // Perform Restore Copy
             if (!safeAtomicCopy($backupFilePath, $targetDb)) {
                 $err = error_get_last()['message'] ?? 'Dosya kilitli veya yazma hatası';
                 sendJsonResponse(false, t('api.restore_error', ['error' => $err]), [], 500);
             }
 
+            // Clean up any stale active WAL / SHM files so restored main DB is used
             $walTarget = $targetDb . '-wal';
-            $walBackup = "{$backupDir}/{$ts}_database.sqlite-wal";
-            if (file_exists($walBackup)) {
-                safeAtomicCopy($walBackup, $walTarget);
-            } elseif (file_exists($walTarget)) {
-                @unlink($walTarget);
-            }
-
+            if (file_exists($walTarget)) @unlink($walTarget);
             $shmTarget = $targetDb . '-shm';
-            $shmBackup = "{$backupDir}/{$ts}_database.sqlite-shm";
-            if (file_exists($shmBackup)) {
-                safeAtomicCopy($shmBackup, $shmTarget);
-            } elseif (file_exists($shmTarget)) {
-                @unlink($shmTarget);
-            }
+            if (file_exists($shmTarget)) @unlink($shmTarget);
 
             @touch($targetDb);
 
+            // Phase 2: Post-Restore Integrity Verification
+            $integrityCheckResult = 'ok';
+            if (extension_loaded('pdo_sqlite') || (class_exists('PDO') && in_array('sqlite', PDO::getAvailableDrivers()))) {
+                try {
+                    $pdoRestored = new PDO("sqlite:" . $targetDb);
+                    $pdoRestored->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                    $stmt = $pdoRestored->query("PRAGMA integrity_check;");
+                    $integrityCheckResult = $stmt ? $stmt->fetchColumn() : 'unknown';
+                } catch (Throwable $e) {
+                    $integrityCheckResult = 'error: ' . $e->getMessage();
+                }
+            }
+
             sendJsonResponse(true, t('api.restore_success', ['file' => $backupFilename]), [
-                'restored_timestamp' => $ts,
-                'restored_date'      => date('Y-m-d H:i:s', $ts),
-                'relative_time'      => Lang::getRelativeTime($ts)
+                'restored_file'     => $backupFilename,
+                'safety_snapshot'   => $safetySnapshotName,
+                'integrity_check'   => $integrityCheckResult
             ]);
             break;
 
@@ -353,3 +446,4 @@ try {
 } catch (Throwable $e) {
     sendJsonResponse(false, t('api.system_error', ['error' => $e->getMessage()]), [], 500);
 }
+

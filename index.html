@@ -760,7 +760,7 @@
                 const res = await fetch('api.php?action=toggle_pin', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ timestamp: item.timestamp, lang: currentLang })
+                    body: JSON.stringify({ identifier: item.filename || item.timestamp, lang: currentLang })
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -775,7 +775,8 @@
         function downloadCurrentSnapshot() {
             if (!backupsList[selectedIndex]) return;
             const item = backupsList[selectedIndex];
-            window.location.href = `api.php?action=download&timestamp=${item.timestamp}`;
+            const idParam = encodeURIComponent(item.filename || item.timestamp);
+            window.location.href = `api.php?action=download&identifier=${idParam}`;
             showToast('Snapshot indirmesi başlatıldı', 'info');
         }
 
@@ -794,7 +795,8 @@
             }, 10);
 
             try {
-                const res = await fetch(`api.php?action=diff&timestamp=${item.timestamp}&lang=${currentLang}`);
+                const idParam = encodeURIComponent(item.filename || item.timestamp);
+                const res = await fetch(`api.php?action=diff&identifier=${idParam}&lang=${currentLang}`);
                 const data = await res.json();
 
                 if (data.success && data.data.diff) {
@@ -851,12 +853,14 @@
                     ? 'bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-l-4 border-amber-500 text-white font-medium shadow-inner' 
                     : 'hover:bg-[#121724] text-gray-300 transition';
 
+                const displayTag = item.is_safety ? '🛡️ [Pre-Restore]' : (item.is_pinned ? '📌' : '');
+
                 return `
                     <tr class="${rowClass}">
                         <td class="py-3.5 px-4 mono-font text-amber-400 font-semibold whitespace-nowrap">
                             <div class="flex items-center gap-2">
-                                <span class="w-5 text-center inline-block">${item.is_pinned ? '📌' : '<span class="opacity-0">📌</span>'}</span>
-                                <span class="${isSelected ? 'text-amber-300 font-bold' : 'text-amber-400/90'}">${item.timestamp}</span>
+                                <span class="text-center inline-block">${displayTag}</span>
+                                <span class="${isSelected ? 'text-amber-300 font-bold' : 'text-amber-400/90'}">${item.time_formatted} (${item.uniqid || item.timestamp})</span>
                             </div>
                         </td>
                         <td class="py-3.5 px-4 mono-font text-gray-200">${item.datetime}</td>
@@ -870,7 +874,7 @@
                             <button onclick="selectSnapshotByIndex(${realIndex})" class="px-3 py-1.5 rounded-lg bg-[#10141e] hover:bg-[#1d2638] text-gray-300 hover:text-white text-xs font-semibold transition border border-[#263147]">
                                 ${t('ui.btn_select')}
                             </button>
-                            <button onclick="quickRestore(${item.timestamp})" class="ml-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs shadow-md shadow-amber-500/10 transition border border-amber-400/40 whitespace-nowrap">
+                            <button onclick="quickRestore('${item.filename}')" class="ml-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs shadow-md shadow-amber-500/10 transition border border-amber-400/40 whitespace-nowrap">
                                 ${t('ui.btn_table_restore')}
                             </button>
                         </td>
@@ -894,12 +898,12 @@
 
             document.getElementById('modalConfirmBtn').onclick = () => {
                 closeModal();
-                performRestore(item.timestamp);
+                performRestore(item.filename || item.timestamp);
             };
         }
 
-        function quickRestore(timestamp) {
-            const item = backupsList.find(b => b.timestamp === timestamp);
+        function quickRestore(identifier) {
+            const item = backupsList.find(b => b.filename === identifier || b.timestamp == identifier);
             if (!item) return;
             document.getElementById('modalTargetTime').innerText = `${item.datetime} (${item.relative_time})`;
             
@@ -912,7 +916,7 @@
 
             document.getElementById('modalConfirmBtn').onclick = () => {
                 closeModal();
-                performRestore(timestamp);
+                performRestore(item.filename || item.timestamp);
             };
         }
 
@@ -925,20 +929,24 @@
             }, 200);
         }
 
-        async function performRestore(timestamp) {
+        async function performRestore(identifier) {
             try {
                 showToast(t('ui.toast_restoring'), 'info');
 
                 const response = await fetch('api.php?action=restore', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ timestamp, lang: currentLang })
+                    body: JSON.stringify({ identifier, lang: currentLang })
                 });
 
                 const result = await response.json();
 
                 if (result.success) {
                     showToast(result.message, 'success');
+                    if (result.data && result.data.integrity_check) {
+                        showToast(`PRAGMA integrity_check: ${result.data.integrity_check}`, result.data.integrity_check === 'ok' ? 'success' : 'error');
+                    }
+                    showToast(t('ui.toast_restore_worker_warning'), 'info');
                     await loadBackups(false);
                     resetToLiveState();
                 } else {

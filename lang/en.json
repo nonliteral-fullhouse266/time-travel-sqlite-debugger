@@ -99,6 +99,7 @@
     "toast_live_selected": "Live state selected",
     "toast_restoring": "Restoring database snapshot...",
     "toast_restore_failed": "Failed to restore database snapshot",
+    "toast_restore_worker_warning": "Warning: You may need to restart your running application (e.g. Laravel/PHP worker) to clear its cached SQLite connection.",
     "toast_writing_test": "Writing test data into database...",
     "toast_language_changed": "Language changed to {lang}"
   }

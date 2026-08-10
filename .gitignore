@@ -1,6 +1,7 @@
 # Database & Backup files
 database.sqlite*
 backups/
+tests/
 *.tmp
 *.log
 
